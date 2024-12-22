@@ -1,5 +1,6 @@
-import tkparam
+from tkparam import TKParamWindow
 import time
+
 
 # 创建个tk窗口，窗口在线程中运行
 # create a tkinter window running in a thread

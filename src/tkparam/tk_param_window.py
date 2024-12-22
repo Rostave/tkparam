@@ -1,5 +1,5 @@
 from threading import Thread
-from tk_param import *
+from .tk_param import *
 import time
 from typing import Callable
 
