@@ -1,15 +1,17 @@
 from threading import Thread
 from .tk_param import *
 import time
-from typing import Callable
+from typing import Callable, List
+import warnings
 
 
 class TKParamWindow:
-    def __init__(self, title="参数面板"):
+    def __init__(self, title="tkparam window"):
         self.root = None
         self.title = title
         self._mainloop_thread = None
         self._is_running: bool = False
+        self.params: dict = dict()
 
         self._start_thread_loop()
         time.sleep(0.1)  # 留些时间用于tk初始化
@@ -32,6 +34,10 @@ class TKParamWindow:
         self.root.title(self.title)
         self.root.mainloop()
 
+    def _check_name_duplication(self, name):
+        if self.params.get(name) is not None:
+            raise ValueError(f"Already created parameter named: '{name}', name duplication not allowed")
+
     def quit(self):
         """
         quit the window and join the thread
@@ -39,12 +45,12 @@ class TKParamWindow:
         self.root.quit()
         self._join_loop_thread()
 
-    def get_scalar(self,
-                   param_name: str,
-                   default_value: float = None,
-                   range_min: float = None,
-                   range_max: float = None,
-                   is_int: bool = False) \
+    def scalar(self,
+               param_name: str,
+               default_value: float = None,
+               range_min: float = None,
+               range_max: float = None,
+               is_int: bool = False) \
             -> TkScalar:
         """
         get a scalar parameter from the window
@@ -55,14 +61,16 @@ class TKParamWindow:
         :param is_int: is integer or float
         :return: the scalar parameter, using TkScalar.get() to get the value
         """
+        self._check_name_duplication(param_name)
         data_type = TKDataType.INT if is_int else TKDataType.FLOAT
         param = TK_PARAM_SCALAR_MAP[data_type](self.root, param_name, data_type, default_value, range_min, range_max)
+        self.params[param_name] = param
         return param
 
-    def get_button(self,
-                   param_name: str,
-                   default_value: bool = True,
-                   on_change: Callable[[bool], None] = None) \
+    def button_bool(self,
+                    param_name: str,
+                    default_value: bool = True,
+                    on_change: Callable[[bool], None] = None) \
             -> TkBoolBtn:
         """
         get a button parameter from the window
@@ -71,32 +79,49 @@ class TKParamWindow:
         :param on_change: callback function when the button is clicked
         :return: the button parameter, using TkBoolBtn.get() to get the value
         """
+        self._check_name_duplication(param_name)
         data_type = TKDataType.BOOL
         param = TK_PARAM_SCALAR_MAP[data_type](self.root, param_name, default_value, on_change)
+        self.params[param_name] = param
         return param
 
+    def get_param_by_name(self, param_name: str, fallback=None):
+        """
+        get a created parameter by name
+        :param param_name: parameter name given when created
+        :param fallback: fallback value if not required name is not found
+        :return: the created parameter instance
+        """
+        if param_name not in self.params:
+            warnings.warn(f"parameter named '{param_name}' not found", stacklevel=2)
+            return fallback
+        return self.params.get(param_name)
 
-# if __name__ == '__main__':
-#
-#     # 创建个tk窗口，窗口在线程中运行
-#     # create a tkinter window running in a thread
-#     window = TKParamWindow(title="example window")
-#
-#     # 定义窗口中需要调整的参数
-#     # define parameters to be adjusted in the window
-#     float_param = window.get_scalar("float param", default_value=2, range_min=-1.5, range_max=2.3)
-#     int_param = window.get_scalar("int param", default_value=2.3, range_min=-10, range_max=10, is_int=True)
-#     bool_button = window.get_button("button", default_value=False, on_change=lambda status: print(f"Button clicked: status: {status}"))
-#
-#     loop_duration = 10
-#     print(f"The program will enter a loop for {loop_duration} seconds, you can adjust the parameters in GUI and see the printed real-time value")
-#     end_time = time.time() + loop_duration
-#
-#     while True:
-#         print(f"{float_param} | {int_param} | {bool_button}")
-#         if time.time() > end_time:
-#             break
-#
-#     # 退出窗口，自动结束线程
-#     # quit the window and end the thread automatically
-#     window.quit()
+    def dump_param_to_dict(self) -> dict:
+        """
+        dump all parameters to a dictionary
+        :return: a dictionary containing all parameters and their values
+        """
+        ret = {}
+        for param in self.params.values():
+            ret[param.name] = param.get()
+        return ret
+
+    def load_param_from_dict(self, param_dict: dict):
+        """
+        load parameters from a dictionary, will create new parameters if not exist
+        :param param_dict: dictionary containing parameters and their values
+        """
+        def check_type(value):
+            return isinstance(value, (int, float, bool))
+
+        for k, v in param_dict.items():
+            if not check_type(v):
+                warnings.warn(f"type '{type(v)}' of parameter '{k}' is not acceptable, skipped", stacklevel=2)
+                continue
+
+            if param := self.params.get(k):
+                param.set(v)
+            else:
+                warnings.warn(f"parameter named '{k}' not found, skipped", stacklevel=2)
+                continue

@@ -1,28 +1,27 @@
 # tkparam
 
-tkparam provides a simple way to dynamically adjust parameters in a tkinter GUI panel, which is useful in looping programs.
+tkparam提供了一种简单的方法使用tkinter的GUI面板中来动态调整参数，方便在循环程序中调整参数.
+
+## 安装
 
 
-## Installation
-
-
-Install through pip:
+使用pip：
 
 
 ```bash
 pip install tkparam
 ```
 
-## Example
+## 用例
 
 ```python
 import tkparam
 import time
 
-# create a tkinter window running in a thread
+# 创建个tk窗口，窗口在线程中运行
 window = TKParamWindow(title="example window")
 
-# define parameters to be adjusted in the window
+# 定义窗口中需要调整的参数
 float_param = window.get_scalar("float param", default_value=2, range_min=-1.5, range_max=2.3)
 int_param = window.get_scalar("int param", default_value=2.3, range_min=-10, range_max=10, is_int=True)
 bool_button = window.button_bool("button", default_value=False,
@@ -38,6 +37,6 @@ while True:
     if time.time() > end_time:
         break
 
-# quit the window and end the thread automatically
+# 退出窗口，自动结束线程
 window.quit()
 ```
